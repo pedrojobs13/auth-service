@@ -7,6 +7,4 @@ app.use(express.json());
 
 app.use("/auth", require("./routes/authRoutes"));
 
-app.listen(3000, () => {
-    console.log("Auth service rodando");
-});
+module.exports = app;
