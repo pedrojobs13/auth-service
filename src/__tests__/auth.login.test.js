@@ -1,10 +1,8 @@
 const request = require("supertest");
 
 jest.mock("axios");
-jest.mock("bcryptjs");
 
 const axios = require("axios");
-const bcrypt = require("bcryptjs");
 
 const app = require("../app");
 
@@ -15,15 +13,9 @@ describe("POST /auth/login", () => {
   });
 
   test("retorna 200 e token quando credenciais são válidas", async () => {
-    axios.get
-      .mockResolvedValueOnce({
-        data: [{ id: 1, email: "a@a.com" }],
-      })
-      .mockResolvedValueOnce({
-        data: { id: 1, email: "a@a.com", senha: "hashed" },
-      });
-
-    bcrypt.compare.mockResolvedValueOnce(true);
+    axios.post.mockResolvedValueOnce({
+      data: { id: 1, email: "a@a.com", nome: "A" },
+    });
 
     const res = await request(app)
       .post("/auth/login")
@@ -32,10 +24,17 @@ describe("POST /auth/login", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("token");
     expect(typeof res.body.token).toBe("string");
+
+    expect(axios.post).toHaveBeenCalledWith(
+      "http://user-service/usuarios/auth",
+      { email: "a@a.com", senha: "123" }
+    );
   });
 
   test("retorna 401 quando usuário não existe", async () => {
-    axios.get.mockResolvedValueOnce({ data: [{ id: 1, email: "x@x.com" }] });
+    axios.post.mockRejectedValueOnce({
+      response: { status: 401, data: { error: "Usuário não encontrado" } },
+    });
 
     const res = await request(app)
       .post("/auth/login")
@@ -46,15 +45,9 @@ describe("POST /auth/login", () => {
   });
 
   test("retorna 401 quando senha é inválida", async () => {
-    axios.get
-      .mockResolvedValueOnce({
-        data: [{ id: 1, email: "a@a.com" }],
-      })
-      .mockResolvedValueOnce({
-        data: { id: 1, email: "a@a.com", senha: "hashed" },
-      });
-
-    bcrypt.compare.mockResolvedValueOnce(false);
+    axios.post.mockRejectedValueOnce({
+      response: { status: 401, data: { error: "Senha inválida" } },
+    });
 
     const res = await request(app)
       .post("/auth/login")

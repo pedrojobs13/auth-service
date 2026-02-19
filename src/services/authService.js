@@ -1,32 +1,27 @@
 const axios = require("axios");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 exports.login = async (email, senha) => {
-    const response = await axios.get(
-        `${process.env.USER_SERVICE_URL}/usuarios`
+  // Fluxo recomendado: user-service valida as credenciais e devolve dados básicos.
+  let usuario;
+  try {
+    const { data } = await axios.post(
+      `${process.env.USER_SERVICE_URL}/usuarios/auth`,
+      { email, senha }
     );
+    usuario = data;
+  } catch (err) {
+    // Se o user-service devolveu 401/404 com mensagem, repassa a mensagem.
+    const msg = err?.response?.data?.error;
+    if (msg) throw new Error(msg);
+    throw err;
+  }
 
-    const usuario = response.data.find(u => u.email === email);
+  const token = jwt.sign(
+    { id: usuario.id, email: usuario.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
 
-    if (!usuario) throw new Error("Usuário não encontrado");
-
-    const userFull = await axios.get(
-        `${process.env.USER_SERVICE_URL}/usuarios/${usuario.id}`
-    );
-
-    const senhaValida = await bcrypt.compare(
-        senha,
-        userFull.data.senha
-    );
-
-    if (!senhaValida) throw new Error("Senha inválida");
-
-    const token = jwt.sign(
-        { id: usuario.id, email: usuario.email },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-    );
-
-    return token;
+  return token;
 };
